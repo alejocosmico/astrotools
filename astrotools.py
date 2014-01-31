@@ -619,7 +619,7 @@ def plot_spec(specData, ploterrors=False):
     return fig
 
 
-def read_spec(specFiles, errors=True, atomicron=False, negtonan=False, plot=False, linear=False, verbose=True):
+def read_spec(specFiles, errors=True, atomicron=False, negtonan=False, plot=False, linear=False, templ=False, verbose=True):
     '''
     (by Alejandro N |uacute| |ntilde| ez, Jocelyn Ferrara)
     
@@ -639,6 +639,8 @@ def read_spec(specFiles, errors=True, atomicron=False, negtonan=False, plot=Fals
       Boolean, whether to plot the spectral data, including error bars when available.
     *linear*
       Boolean, whether to return spectrum only if it is linear. If it cannot verify linearity, it will assume linearity.
+    *templ*
+      Boolean, whether data to extract is of a template spectrum, which means it includes avg flux, flux variance, min and max flux at each wavelength.
     *verbose*
       Boolean, whether to print warning messages.
     '''
@@ -679,17 +681,6 @@ def read_spec(specFiles, errors=True, atomicron=False, negtonan=False, plot=Fals
                 specData[spFileIdx] = [aData[0].tonumpy(), aData[1].tonumpy()]
                 if len(aData) >= 3 and errors:
                     specData[spFileIdx].append(aData[2].tonumpy())
-                # # Check (when header available) whether data is linear.
-                # if aData.header:
-                #     lindex = str(aData.header).upper().find('LINEAR')
-                #     if lindex == -1:
-                #         isLinear = False
-                #     else:
-                #         isLinear = True
-                #     if linear and not isLinear:
-                #         if verbose:
-                #             print 'Data in ' + spFile + ' is not linear.'
-                #         return
             except IOError:
                 print 'Could not open ' + str(spFile) + '.'
                 continue
@@ -715,12 +706,13 @@ def read_spec(specFiles, errors=True, atomicron=False, negtonan=False, plot=Fals
         
         # 3.4. Get wl, flux & error data from fits file
         #      (returns wl in pos. 0, flux in pos. 1, error values in pos. 2)
+        #      (If template spec: min flux in pos. 3, max flux in pos. 4)
         if isFits:
             specData[spFileIdx] = __get_spec(fitsData, fitsHeader, spFile, errors, \
-                                             verb=verbose)
+                                             templ=templ, verb=verbose)
             if specData[spFileIdx] is None:
                 continue
-        
+            
             # Generate wl axis when needed
             if specData[spFileIdx][0] is None:
                 specData[spFileIdx][0] = __create_waxis(fitsHeader, \
@@ -984,14 +976,16 @@ def __create_waxis(fitsHeader, lenData, fileName, verb=True):
     return wAxis
 
 
-def __get_spec(fitsData, fitsHeader, fileName, errorVals, verb=True):
+def __get_spec(fitsData, fitsHeader, fileName, errorVals, templ=False, verb=True):
 # Function used by read_spec only
 # (by Alejo)
 # Interprets spectral data from fits file.
-# Returns wavelength (wl) data in pos. 0, flux data in pos. 1, 
-# and if requested, error values in pos. 2.
+# Returns wavelength (wl) data in pos. 0, flux data in pos. 1, and if requested, error values in pos. 2.
+# If templ, also returns min flux in pos. 3 and max flux in pos. 4
     
-    if errorVals:
+    if templ:
+        validData = [None] * 5
+    elif errorVals:
         validData = [None] * 3
     else:
         validData = [None] * 2
@@ -1026,9 +1020,17 @@ def __get_spec(fitsData, fitsHeader, fileName, errorVals, verb=True):
         fluxIdx  = 0
         sigmaIdx = 3
     elif dimNum == 5:
-    # 0-flux, 1-continuum substracted flux, 2-sigma, 3-mask array, 4-unknown
-        fluxIdx  = 0
-        sigmaIdx = 2
+        if templ:
+            # 0-wl, 1-avg flux, 2-flux variance, 3-min flux, 4-max flux
+            waveIdx = 0
+            fluxIdx = 1
+            sigmaIdx = 2
+            minIdx = 3
+            maxIdx = 4
+        else:
+            # 0-flux, 1-continuum substracted flux, 2-sigma, 3-mask array, 4-unknown
+            fluxIdx  = 0
+            sigmaIdx = 2
     elif dimNum > 10:
     # Implies that only one data set in fits file: flux
         fluxIdx = -1
@@ -1090,6 +1092,10 @@ def __get_spec(fitsData, fitsHeader, fileName, errorVals, verb=True):
         if validData[2][10] == validData[2][11] == validData[2][12]:
             validData[2] = np.array([np.nan] * len(validData[1]))
     
+    # Fetch template data when relevant
+    if templ:
+        validData[3] = fitsData[minIdx]
+        validData[4] = fitsData[maxIdx]
     return validData
 
 
