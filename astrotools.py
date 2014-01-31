@@ -6,7 +6,7 @@ The module **astrotools** is a set of functions for astrophysical analysis devel
 	Dan Feldman, Alejandro N |uacute| |ntilde| ez, Damian Sowinski, Jocelyn Ferrara
 
 :Date:
-    2012/08/024
+    2012/08/24
 
 :Repository:
     https://github.com/BDNYC/astrotools
@@ -35,9 +35,9 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pyfits as pf
-import scipy.interpolate as spi
-import scipy.ndimage as spn
-import scipy.stats as sps
+#import scipy.interpolate as spi
+#import scipy.ndimage as spn
+#import scipy.stats as sps
 
 # III +++++++++++++++++++++++ PUBLIC FUNCTIONS ++++++++++++++++++++++++++++++++
 # Functions meant to be used by end users of astrotools. Use only lower case characters to name functions.
@@ -483,32 +483,44 @@ def norm_spec(specData, limits, flag=False):
         
         # If lower limit < all values in spectrum wavelength points, then
         # make band's minimum value = first data point in spectrum
-        if len(smallIdx[0]) == 0:
+        try:
+            smallIdx[0]
+        except IndexError:
             minIdx = 0
+            smallIdx = [None]
+#        if len(smallIdx[0]) == 0:
+#            minIdx = 0
         
         # If lower limit > all values in spectrum wavelength points, then
         # no band can be selected
-        elif len(smallIdx[0]) == len(spData[0]):
-            print 'norm_spec: the wavelength data for object is outside limits.' 
-            continue
-        else:
-            minIdx = smallIdx[0][-1] + 1
+        if smallIdx != [None]:
+            if len(smallIdx[0]) == len(spData[0]):
+                print 'norm_spec: the wavelength data for object is outside limits.' 
+                continue
+            else:
+                minIdx = smallIdx[0][-1] + 1
         
         # 4) Determine maximum wavelength value for band
         largeIdx = np.where(spData[0] > all_lims[spIdx][1])
         
         # If upper limit > all values in spectrum wavelength points, then
         # make band's maximum value = last data point in spectrum
-        if len(largeIdx[0]) == 0:
-            maxIdx = len(spData[0])    
+        try:
+            largeIdx[0]
+        except IndexError:
+            maxIdx = len(spData[0])
+            largeIdx = [None]
+#        if len(largeIdx[0]) == 0:
+#            maxIdx = len(spData[0])
         
         # If upper limit < all values in spectrum wavelength points, then
         # no band can be selected
-        elif len(largeIdx[0]) == len(spData[0]):
-            print 'norm_spec: the wavelength data for object is outside limits.'
-            continue
-        else:
-            maxIdx = largeIdx[0][0]
+        if largeIdx != [None]:
+            if len(largeIdx[0]) == len(spData[0]):
+                print 'norm_spec: the wavelength data for object is outside limits.'
+                continue
+            else:
+                maxIdx = largeIdx[0][0]
         
         # 5) Check for consistency in the computed band limits
         if maxIdx - minIdx < 2:
@@ -517,10 +529,12 @@ def norm_spec(specData, limits, flag=False):
             
         # 6) Select flux band from spectrum
         fluxSelect = spData[1][minIdx:maxIdx]
+        fluxSelect = np.array(fluxSelect)
         
         # 7) Select error value band from spectrum
         if errors is True:
             errorSelect = spData[2][minIdx:maxIdx]
+            errorSelect = np.array(errorSelect)
         
         # 8) Normalize spectrum using arithmetic mean
         notNans = np.where(np.isfinite(fluxSelect))
