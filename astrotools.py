@@ -27,17 +27,18 @@ import pdb
 import types
 
 # Third party Python modules
-try:
-    import asciidata as ad
-except ImportError:
-    raise SystemExit('This module requires AstroAsciiData module.')
+#try:
+#    import asciidata as ad
+#except ImportError:
+#    raise SystemExit('This module requires AstroAsciiData module.')
+
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pyfits as pf
-#import scipy.interpolate as spi
-#import scipy.ndimage as spn
-#import scipy.stats as sps
+import scipy.interpolate as spi
+import scipy.ndimage as spn
+import scipy.stats as sps
 
 # III +++++++++++++++++++++++ PUBLIC FUNCTIONS ++++++++++++++++++++++++++++++++
 # Functions meant to be used by end users of astrotools. Use only lower case characters to name functions.
@@ -229,6 +230,8 @@ def create_ascii(listObj, saveto=None, header=None, delimiter='\t'):
     *delimiter*
         String specifying the delimiter desired for the ascii file. The default is *tab delimited*.
     '''
+    import asciidata as ad
+    
     # Initialize variables
     DELIMITER = '\t'
     
@@ -677,6 +680,7 @@ def read_spec(specFiles, errors=True, atomicron=False, negtonan=False, plot=Fals
         # Assume ascii file otherwise (isFits = False)
         else:
             try:
+                import asciidata as ad
                 aData = ad.open(spFile)
                 specData[spFileIdx] = [aData[0].tonumpy(), aData[1].tonumpy()]
                 if len(aData) >= 3 and errors:
