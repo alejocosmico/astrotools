@@ -27,11 +27,6 @@ import pdb
 import types
 
 # Third party Python modules
-#try:
-#    import asciidata as ad
-#except ImportError:
-#    raise SystemExit('This module requires AstroAsciiData module.')
-
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
@@ -400,10 +395,18 @@ def mean_comb(spectra, mask=None, robust=None, extremes=False):
     
     # 4. Calculate mean and variance of flux values
     if uncsGiven:
-        mvar = 1. / np.nansum(1. / ip_spectra[:,1,:], axis=1)
-        mean = np.nansum(ip_spectra[:,0,:] / ip_spectra[:,1,:], axis=1) * mvar
+        mvarraw = 1. / np.nansum(1. / ip_spectra[:,1,:], axis=1) # 1/Sum(1/sigma_i^2)
+        wmean = np.nansum(ip_spectra[:,0,:] / ip_spectra[:,1,:], axis=1) # Sum(x_i/sigma_i^2)
+        mean = wmean * mvarraw
+        mvar = mvarraw
+        # Correct weighted sample variance for small sample
+        #meantile = np.tile(mean, (numSpec,1)).T
+        #V1 = 1 / mvarraw
+        #V2 = np.nansum(ip_spectra[:,1,:]**2, axis=1)
+        #mvar = V1 / (V1**2 - V2) * \
+        #       np.nansum((ip_spectra[:,0,:] - meantile)**2 / ip_spectra[:,1,:], axis=1)
     else:
-        mvar = sps.nanstd(ip_spectra[:,0,:], axis=1) ** 2 / numPoints
+        mvar = sps.nanstd(ip_spectra[:,0,:], axis=1) ** 2 / numSpec
         mean = sps.nanmean(ip_spectra[:,0,:], axis=1)
     
     # 5. Calculate extreme flux values if requested
@@ -491,8 +494,6 @@ def norm_spec(specData, limits, flag=False):
         except IndexError:
             minIdx = 0
             smallIdx = [None]
-#        if len(smallIdx[0]) == 0:
-#            minIdx = 0
         
         # If lower limit > all values in spectrum wavelength points, then
         # no band can be selected
@@ -513,8 +514,6 @@ def norm_spec(specData, limits, flag=False):
         except IndexError:
             maxIdx = len(spData[0])
             largeIdx = [None]
-#        if len(largeIdx[0]) == 0:
-#            maxIdx = len(spData[0])
         
         # If upper limit < all values in spectrum wavelength points, then
         # no band can be selected
@@ -547,9 +546,9 @@ def norm_spec(specData, limits, flag=False):
         finalData[spIdx] = [spData[0], finalFlux]
         
         if errors is True:
-            notNans  = np.where(np.isfinite(errorSelect))
-            avgError = np.mean(errorSelect[notNans])
-            finalErrors = spData[2] / avgError
+            #notNans  = np.where(np.isfinite(errorSelect))
+            #avgError = np.mean(errorSelect[notNans])
+            finalErrors = spData[2] / avgFlux
             
             finalData[spIdx] = [spData[0], finalFlux, finalErrors]
     
@@ -924,6 +923,9 @@ def smooth_spec(specData, oldres=None, newres=200, specFile=None, winWidth=10):
                 notNans = np.where(np.isfinite(fluxes))
                 fluxes[notNans] = spn.filters.uniform_filter( \
                                   fluxes[notNans], size=width)
+                if errs is not None:
+                    errs[notNans] = spn.filters.uniform_filter( \
+                                  errs[notNans], size=width)
             
             # Append to output
             if errs is None:
