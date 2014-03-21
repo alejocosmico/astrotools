@@ -30,7 +30,7 @@ import types
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
-import pyfits as pf
+import astropy.io.fits as pf
 import scipy.interpolate as spi
 import scipy.ndimage as spn
 import scipy.stats as sps
@@ -297,7 +297,7 @@ def integrate(xyData):
     return integral
 
 
-def mean_comb(spectra, mask=None, robust=None, extremes=False):
+def mean_comb(spectra, mask=None, robust=None, forcesimple=False, extremes=False):
     '''
     (by Alejandro N |uacute| |ntilde| ez)
     
@@ -311,6 +311,8 @@ def mean_comb(spectra, mask=None, robust=None, extremes=False):
       Array of wavelengths to be used as mask for all spectra. If none, then the wavelength array of the first spectrum is used as mask.
     *robust*
       Float, the sigma threshold to throw bad flux data points out. If none given, then all flux data points will be used.
+    *forcesimple*
+      Boolean, whether to calculate a straight mean and variance even if weights are available.
     *extremes*
       Boolean, whether to include the min and max flux values at each masked pixel.
     
@@ -345,6 +347,8 @@ def mean_comb(spectra, mask=None, robust=None, extremes=False):
     
     # 2. Check if uncertainties were given
     uncsGiven = True
+    if forcesimple:
+        uncsGiven = False
     for spec in spectra:
         if uncsGiven:
             try:
@@ -406,7 +410,7 @@ def mean_comb(spectra, mask=None, robust=None, extremes=False):
         #mvar = V1 / (V1**2 - V2) * \
         #       np.nansum((ip_spectra[:,0,:] - meantile)**2 / ip_spectra[:,1,:], axis=1)
     else:
-        mvar = sps.nanstd(ip_spectra[:,0,:], axis=1) ** 2 / numSpec
+        mvar = sps.nanstd(ip_spectra[:,0,:], axis=1) ** 2 # /numSpec -- I think I dont need this
         mean = sps.nanmean(ip_spectra[:,0,:], axis=1)
     
     # 5. Calculate extreme flux values if requested
@@ -662,7 +666,7 @@ def read_spec(specFiles, errors=True, atomicron=False, negtonan=False, plot=Fals
     
     # 3. Loop through each file name:
     for spFileIdx,spFile in enumerate(specFiles):
-        
+        if spFile is None: continue
         # 3.1 Determine the type of file it is
         isFits = False
         ext = spFile[-4:].lower()
@@ -884,7 +888,9 @@ def smooth_spec(specData, oldres=None, newres=200, specFile=None, winWidth=10):
     
     smoothData = []
     for specIdx,spec in enumerate(specData):
-        if spec is not None:
+        if spec is None:
+            smoothData.append(None)
+        else:
             # Get spectrum columns
             wls = np.array(spec[0])
             fluxes = np.array(spec[1])
