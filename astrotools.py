@@ -297,7 +297,7 @@ def integrate(xyData):
     return integral
 
 
-def mean_comb(spectra, mask=None, robust=None, forcesimple=False, extremes=False):
+def mean_comb(spectra, mask=None, robust=None, forcesimple=False, extremes=False, renormalize=False):
     '''
     (by Alejandro N |uacute| |ntilde| ez)
     
@@ -315,6 +315,8 @@ def mean_comb(spectra, mask=None, robust=None, forcesimple=False, extremes=False
       Boolean, whether to calculate a straight mean and variance even if weights are available.
     *extremes*
       Boolean, whether to include the min and max flux values at each masked pixel.
+    *renormalize*
+      Boolean, whether to re-normalized the spectra agains the calculated combined spectrum, in which case the spectra will be returned in a list, with masked values.
     
     '''
     # Check inputs
@@ -424,7 +426,21 @@ def mean_comb(spectra, mask=None, robust=None, forcesimple=False, extremes=False
     else:
         specComb = [wl_mask, mean, mvar]
     
-    return specComb
+    # 6. Re-normalize spectra to calculated combined spectrum, if requested
+    if renormalize:
+        renorm_spectra = []
+        for ispec in range(0, numSpec):
+            tmpflux = ip_spectra[:,0,ispec]
+            renormfac = np.median(tmpflux / mean) # mean is the flux of the combined spectrum
+            if uncsGiven:
+                tmpunc = ip_spectra[:,1,ispec]
+                renorm_spectra.append([wl_mask, tmpflux / renormfac, tmpunc / renormfac])
+            else:
+                renorm_spectra.append([wl_mask, tmpflux / renormfac])
+        
+        return specComb, renorm_spectra
+    else:
+        return specComb
 
 
 def norm_spec(specData, limits, flag=False):
